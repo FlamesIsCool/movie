@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Movie Website List</title>
+  <title>Movie Website List with LootLabs Redirect</title>
   <style>
     /* ==========================================================================
-       Reset & Global Settings
+       Reset & Global Styles
        ========================================================================== */
     *, *::before, *::after {
       margin: 0;
@@ -541,46 +541,46 @@
 
   <script>
     document.addEventListener("DOMContentLoaded", function() {
+      // Your LootLabs API token
       const apiToken = "30208fce6b1204f980840e5b4f8ba96495373d21853796a735f2b90aa15019ae";
-      const apiEndpoint = "https://be.lootlabs.gg/api/lootlabs/content_locker";
+      // URL Encryptor API endpoint (used for redirect encryption)
+      const encryptorEndpoint = "https://be.lootlabs.gg/api/lootlabs/url_encryptor";
+      // Base ad link (content locker link) provided by LootLabs.
+      // Replace the code (e.g., "qo0f") with the one from your created content locker link.
+      const baseAdLink = "https://loot-link.com/s?qo0f";
 
-      // Function to create an ad link using the LootLabs API via a POST request
-      async function createAdLink(originalUrl, title) {
-        const requestBody = {
-          title: title.substring(0, 30),
-          url: originalUrl,
-          tier_id: 1,
-          number_of_tasks: 3,
-          theme: 1,
-          thumbnail: ""
-        };
-
+      // Function to call the URL Encryptor API for a given destination URL
+      async function encryptUrl(destinationUrl) {
         try {
-          const response = await fetch(apiEndpoint, {
+          const response = await fetch(encryptorEndpoint, {
             method: "POST",
             headers: {
               "Authorization": "Bearer " + apiToken,
               "Content-Type": "application/json"
             },
-            body: JSON.stringify(requestBody)
+            body: JSON.stringify({
+              destination_url: destinationUrl
+            })
           });
           const json = await response.json();
-          if (json.type === "created" && json.message && json.message.loot_url) {
-            return json.message.loot_url;
+          if ((json.type === "created" || json.type === "fetched") && json.message) {
+            // Return the encrypted string (which needs to be appended as &data=encrypted)
+            return json.message;
           } else {
-            console.error("Error creating ad link:", json.message);
-            return originalUrl;
+            console.error("Error encrypting URL:", json.message);
+            return "";
           }
         } catch (error) {
-          console.error("Fetch error:", error);
-          return originalUrl;
+          console.error("Encryption API error:", error);
+          return "";
         }
       }
 
-      // Attach click event listener to each movie website link
+      // Attach click event listeners to each movie website link
       const links = document.querySelectorAll("ul li a");
       links.forEach(link => {
         const originalUrl = link.getAttribute("data-original-url") || link.href;
+        // Ensure the original URL is stored
         if (!link.hasAttribute("data-original-url")) {
           link.setAttribute("data-original-url", originalUrl);
         }
@@ -589,9 +589,16 @@
           const title = link.textContent.trim();
           const originalText = link.textContent;
           link.textContent = "Loading…";
-          const adLink = await createAdLink(originalUrl, title);
+          // Get the encrypted string for the destination URL
+          const encryptedString = await encryptUrl(originalUrl);
+          // If encryption succeeded, construct the final redirect link
+          let finalLink = originalUrl;
+          if (encryptedString) {
+            finalLink = baseAdLink + "&data=" + encryptedString;
+          }
           link.textContent = originalText;
-          window.location.href = adLink;
+          // Redirect the user to the final link
+          window.location.href = finalLink;
         });
       });
     });
